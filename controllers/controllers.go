@@ -192,5 +192,3 @@ func SearchProductByQuery(c *gin.Context) {
 		"count": len(searchedProducts),
 	})
 }
-
-func NewApplication() {}
