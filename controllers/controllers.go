@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/patil-prathamesh/e-commerce-golang/database"
 	"github.com/patil-prathamesh/e-commerce-golang/models"
+	"github.com/patil-prathamesh/e-commerce-golang/tokens"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -81,7 +82,7 @@ func SignUp(c *gin.Context) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 	user.ID = primitive.NewObjectID()
-	token, refreshToken, _ := generate.TokenGenerator(user.Email, user.FirstName, user.LastName)
+	token, refreshToken, _ := tokens.TokenGenerator(user.Email, user.FirstName, user.LastName)
 	user.Token = token
 	user.RefreshToken = refreshToken
 	user.UserCart = make([]models.ProductUser, 0)
@@ -126,9 +127,9 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, refreshToken, _ := generate.TokenGenerator(foundUser.Email, foundUser.FirstName, foundUser.LastName)
+	token, refreshToken, _ := tokens.TokenGenerator(foundUser.Email, foundUser.FirstName, foundUser.LastName)
 
-	generate.UpdateAllTokens(foundUser.ID, token, refreshToken)
+	tokens.UpdateAllTokens(token, refreshToken, foundUser.ID.Hex())
 
 	c.JSON(http.StatusFound, foundUser)
 }
