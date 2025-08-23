@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"log"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -14,12 +15,18 @@ func DBSet() *mongo.Client{
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("Database connected successfully")
+	return client
 }
 
-func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
+var Client *mongo.Client = DBSet()
 
+func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
+	var collection *mongo.Collection = client.Database("Ecommerce").Collection(collectionName)
+	return collection
 } 
 
 func ProductData(client *mongo.Client, collectionName string) *mongo.Collection {
-
+	var productCollection *mongo.Collection = client.Database("Ecommerce").Collection(collectionName)
+	return productCollection
 }
