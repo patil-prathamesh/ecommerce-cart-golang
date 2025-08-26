@@ -52,7 +52,7 @@ func (app *Application) AddToCart(c *gin.Context) {
 	err = database.AddProductToCart(ctx, app.ProdCollection, app.UserCollection, productId, userQueryId)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

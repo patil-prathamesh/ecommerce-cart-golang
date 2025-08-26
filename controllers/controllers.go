@@ -46,29 +46,31 @@ func SignUp(c *gin.Context) {
 
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validationErr := Validate.Struct(user)
 	if validationErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr})
+		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+		return
 	}
 
 	count, err := UserCollection.CountDocuments(ctx, bson.M{"email": user.Email})
 	if err != nil {
 		log.Panic(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if count > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "user already exist."})
+		return
 	}
 
 	count, err = UserCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
 	if err != nil {
 		log.Panic(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -82,32 +84,31 @@ func SignUp(c *gin.Context) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 	user.ID = primitive.NewObjectID()
-	token, refreshToken, _ := tokens.TokenGenerator(user.Email, user.FirstName, user.LastName)
-	user.Token = token
+	token, refreshToken, _ := tokens.TokenGenerator(user.ID.Hex(), user.Email, user.FirstName, user.LastName)
 	user.RefreshToken = refreshToken
-	user.UserCart = make([]models.ProductUser, 0)
-	user.AddressDetails = make([]models.Address, 0)
-	user.OrderStatus = make([]models.Order, 0)
+	user.UserCart = []models.ProductUser{}
+	user.AddressDetails = []models.Address{}
+	user.Order = []models.Order{}
 
 	_, insertErr := UserCollection.InsertOne(ctx, user)
 
 	if insertErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user did not get created"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": insertErr.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User creted successfully",
-		"user_id": user.ID.Hex(),
+		"message":      "User creted successfully",
+		"user_id":      user.ID.Hex(),
+		"access_token": token,
 	})
-
 }
 
 func Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	var user models.User
+	var user models.UserLogin
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err})
 		return
@@ -127,35 +128,63 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, refreshToken, _ := tokens.TokenGenerator(foundUser.Email, foundUser.FirstName, foundUser.LastName)
+	token, refreshToken, _ := tokens.TokenGenerator(foundUser.ID.Hex(), foundUser.Email, foundUser.FirstName, foundUser.LastName)
 
 	tokens.UpdateAllTokens(token, refreshToken, foundUser.ID.Hex())
 
-	c.JSON(http.StatusFound, foundUser)
+	c.JSON(http.StatusFound, gin.H{
+		"message": "user logged in",
+		"access_token": token,
+	})
 }
 
-func ProductViewerAdmin(c *gin.Context) {}
+func ProductViewerAdmin(c *gin.Context) {
+	var product models.Product
+
+	if err := c.ShouldBindJSON(&product); err !=  nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+	defer cancel()
+
+	count , _ := ProductCollection.CountDocuments(ctx, bson.M{"_id": product.ProductID})
+
+	if count > 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error" : "product already exists"})
+		return
+	}
+
+	inserted, err := ProductCollection.InsertOne(ctx, product)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "product inserted successfullly", "product_id": inserted.InsertedID})
+}
 
 func SearchProduct(c *gin.Context) {
 	var productList []models.Product
-	ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
-	cursor, err := ProductCollection.Find(ctx,bson.M{})
+	cursor, err := ProductCollection.Find(ctx, bson.M{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error":"something went wrong, please try after some time"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "something went wrong, please try after some time"})
 		return
 	}
 
 	err = cursor.All(ctx, &productList)
 	if err != nil {
 		log.Println(err)
-		c.AbortWithError(500, err)
+		c.AbortWithError(500, err) //
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"products": productList,
-		"count": len(productList),
+		"count":    len(productList),
 	})
 }
 
@@ -169,10 +198,10 @@ func SearchProductByQuery(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 
-	cursor, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex":query, "$options": "i"}})
+	cursor, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex": query, "$options": "i"}})
 
 	if err != nil {
 		c.JSON(404, "something went wrong")
@@ -184,12 +213,12 @@ func SearchProductByQuery(c *gin.Context) {
 	err = cursor.All(ctx, &searchedProducts)
 	if err != nil {
 		log.Println(err)
-		c.JSON(400, gin.H{"error":"invalid"})
+		c.JSON(400, gin.H{"error": "invalid"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"products": searchedProducts,
-		"count": len(searchedProducts),
+		"count":    len(searchedProducts),
 	})
 }

@@ -15,17 +15,24 @@ import (
 )
 
 type SignedDetails struct {
+	UserID    string
 	Email     string
 	FirstName string
 	LastName  string
 	jwt.RegisteredClaims
 }
 
-var SECRET_KEY = os.Getenv("SECRET_KEY")
+var SECRET_KEY string
+
+func InitSecretKey() {
+	SECRET_KEY = os.Getenv("SECRET_KEY")
+}
+
 var UserData *mongo.Collection = database.UserData(database.Client, "users")
 
-func TokenGenerator(email string, firstName string, lastName string) (signedToken string, signedRefreshToken string, err error) {
+func TokenGenerator(userID string, email string, firstName string, lastName string) (signedToken string, signedRefreshToken string, err error) {
 	claims := &SignedDetails{
+		UserID:    userID,
 		Email:     email,
 		FirstName: firstName,
 		LastName:  lastName,
@@ -36,6 +43,7 @@ func TokenGenerator(email string, firstName string, lastName string) (signedToke
 	}
 
 	refreshClaims := &SignedDetails{
+		UserID:    userID,
 		Email:     email,
 		FirstName: firstName,
 		LastName:  lastName,
@@ -94,7 +102,6 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userID strin
 	filter := bson.M{"_id": userObjectID}
 	update := bson.M{
 		"$set": bson.M{
-			"token":         signedToken,
 			"refresh_token": signedRefreshToken,
 			"updated_at":    time.Now(),
 		},

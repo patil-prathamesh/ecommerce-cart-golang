@@ -6,6 +6,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type UserLogin struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type User struct {
 	ID             primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	FirstName      string             `json:"first_name" validate:"required,min=2,max=30"`
@@ -13,19 +18,17 @@ type User struct {
 	Password       string             `json:"password" validate:"required,min=6"`
 	Email          string             `json:"email" validate:"required,email"`
 	Phone          string             `json:"phone"  validate:"required"`
-	Token          string             `json:"token"`
-	RefreshToken   string             `json:"refresh_token"`
+	RefreshToken   string             `json:"refresh_token" bson:"refresh_token"`
 	CreatedAt      time.Time          `json:"created_at"`
 	UpdatedAt      time.Time          `json:"updated_at"`
-	UserId         string             `json:"user_id"`
 	UserCart       []ProductUser      `json:"user_cart" bson:"user_cart"`
 	AddressDetails []Address          `json:"address_details" bson:"address_details"`
-	OrderStatus    []Order            `json:"order_status" bson:"order_status"`
+	Order          []Order            `json:"orders" bson:"orders"`
 }
 
 type Product struct {
 	ProductID   primitive.ObjectID `bson:"_id,omitempty"`
-	ProductName string             `json:"product_name"`
+	ProductName string             `json:"product_name" bson:"product_name"`
 	Price       uint64             `json:"price"`
 	Rating      uint8              `json:"rating"`
 	Image       string             `json:"image"`

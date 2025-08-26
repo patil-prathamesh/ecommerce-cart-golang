@@ -10,7 +10,7 @@ import (
 )
 
 func DBSet() *mongo.Client{
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientOptions := options.Client().ApplyURI("mongodb://development:testpassword@localhost:27017")
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -22,11 +22,11 @@ func DBSet() *mongo.Client{
 var Client *mongo.Client = DBSet()
 
 func UserData(client *mongo.Client, collectionName string) *mongo.Collection {
-	var collection *mongo.Collection = client.Database("Ecommerce").Collection(collectionName)
+	var collection *mongo.Collection = client.Database("ecommerce").Collection(collectionName)
 	return collection
 } 
 
 func ProductData(client *mongo.Client, collectionName string) *mongo.Collection {
-	var productCollection *mongo.Collection = client.Database("Ecommerce").Collection(collectionName)
+	var productCollection *mongo.Collection = client.Database("ecommerce").Collection(collectionName)
 	return productCollection
 }
